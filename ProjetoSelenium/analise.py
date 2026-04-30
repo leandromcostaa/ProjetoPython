@@ -6,7 +6,7 @@ from database import DatabaseManager
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
-#função para limpar o preço, removendo símbolos e convertendo para float
+# Função para carregar os dados do banco de dados
 def carregar_banco(db_name="livraria.db"):
     try:
       conn = sqlite3.connect(db_name)
@@ -21,22 +21,30 @@ def carregar_banco(db_name="livraria.db"):
 def limpar_dados(df):
     """Transforma textos brutos em números para os gráficos."""
     logging.info("Limpando dados para o dashboard...")
-    
     df_clean = df.copy()
 
-    #  Limpeza de Preço para entrar apenas numeros
+    total_antes = len(df)
+    duplicados = df[df.duplicated(subset="titulo", keep=False)]
+    if not duplicados.empty:
+        print(f"Foram encontradas {len(duplicados)} linhas duplicadas!")
+        print("Títulos que se repetem:")
+        print(duplicados['titulo'].value_counts())
+    else:
+        print("\n✅ Nenhuma duplicata encontrada.")
+    
+    #  Limpeza de Preço para entrar apenas numeros e diminuir a chance de erro
     df_clean['preco'] = df_clean['preco'].str.replace(r'[^\d.]', '', regex=True).astype(float)
 
     #  padronizando o testo e removendo espaços em branco
     df_clean['disponibilidade'] = df_clean['disponibilidade'].str.strip()
     
-    # 4. Remover duplicatas de títulos
-    df_clean = df_clean.drop_duplicates(subset=["titulo", "preco"])
+    # 4. Remover duplicatas de títulos apenas se o preço forem identico, para nao remover livros de ediçoes diferentes
+    df_clean = df_clean.drop_duplicates(subset="titulo")
     
     return df_clean   
 
 def gerar_tabela_visual(df):
-    # coloquei apenas os 10 primeiros para visualizar melhor
+    # coloquei apenas os 10 primeiros para visualizar melhor 
     df_top = df[['titulo', 'preco', 'disponibilidade']].head(10)
     
     # Criei uma figura específica para a tabela
@@ -60,7 +68,7 @@ def gerar_tabela_visual(df):
     plt.show()
 
 def analisar_disponibilidade(df):
-    # 1. Contagem baseada no texto
+    # 1. Contagem baseada no texto para descobrir quantos livros estão em estoque e quantos estão esgotados
     disponiveis = df[df['disponibilidade'].str.contains('In stock', case=False, na=False)].shape[0]
     esgotados = df[df['disponibilidade'].str.contains('Esgotado', case=False, na=False)].shape[0]
 
@@ -88,19 +96,13 @@ def analisar_disponibilidade(df):
     ax.legend(labels, title="Status", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
     
     plt.tight_layout()
-    plt.show() # Este comando abre a janela e pausa a execução até você fechar
-
-    # Relatório impresso no terminal
-    print(f"\n--- Relatório de Estoque ---")
-    print(f"Disponíveis: {disponiveis}")
-    print(f"Esgotados: {esgotados}")
+    plt.show() 
 
 if __name__ == "__main__":
    
    df_raw = carregar_banco("livraria.db")
     
    if df_raw is not None and not df_raw.empty:
-        # Passo 2: Limpa os dados (Regex e Conversão)
         df_final = limpar_dados(df_raw)
         
         # Passo 3: Mostra resultados e Gráficos
