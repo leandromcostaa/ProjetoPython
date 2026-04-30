@@ -5,7 +5,7 @@ from typing import List, Dict
 
 class DatabaseManager:
     #iniciando o banco de dados, criando uma tabela se não existir
-    def __init__(self,db_name: str = "livraria.db"):
+    def __init__(self,db_name: str = "Data/livraria.db"):
         self.db_name = db_name
         self._create_table()
 
@@ -20,6 +20,8 @@ class DatabaseManager:
          titulo TEXT NOT NULL,
          preco REAL,
          disponibilidade TEXT,
+         categoria TEXT,
+         avaliacao REAL,
          data_extracao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
          );
 """
