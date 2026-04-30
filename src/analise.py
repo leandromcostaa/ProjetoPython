@@ -24,7 +24,7 @@ def limpar_dados(df):
     logging.info("Limpando dados para o dashboard...")
     df_clean = df.copy()
 
-    total_antes = len(df)
+
     duplicados = df[df.duplicated(subset="titulo", keep=False)]
     if not duplicados.empty:
         print(f"Foram encontradas {len(duplicados)} linhas duplicadas!")
@@ -33,13 +33,16 @@ def limpar_dados(df):
     else:
         print("\n✅ Nenhuma duplicata encontrada.")
     
-    #  Limpeza de Preço para entrar apenas numeros e diminuir a chance de erro
-    df_clean['preco'] = df_clean['preco'].str.replace(r'[^\d.]', '', regex=True).astype(float)
+    # Limpeza de Preço para entrar apenas numeros , transofrmando em float e preenchendo os valores faltantes com 0
+    df_clean['preco'] = df_clean['preco'].str.replace(r'[^\d.]', '', regex=True).astype(float).fillna(0)
+
+   # Padronizando as avaliações, preenchendo os valores faltantes com 0 e convertendo para float
+    df_clean['avaliacao'] = df_clean['avaliacao'].fillna(0).astype(int)
 
     #  padronizando o testo e removendo espaços em branco
     df_clean['disponibilidade'] = df_clean['disponibilidade'].str.strip()
     
-    # 4. Remover duplicatas de títulos apenas se o preço forem identico, para nao remover livros de ediçoes diferentes
+    #  Remover duplicatas de títulos apenas se o preço forem identico, para nao remover livros de ediçoes diferentes
     df_clean = df_clean.drop_duplicates(subset="titulo")
     
     return df_clean   
@@ -71,16 +74,16 @@ def gerar_tabela_visual(df):
     plt.show()
 
 def analisar_disponibilidade(df):
-    # 1. Contagem baseada no texto para descobrir quantos livros estão em estoque e quantos estão esgotados
+    # Contagem baseada no texto para descobrir quantos livros estão em estoque e quantos estão esgotados
     disponiveis = df[df['disponibilidade'].str.contains('In stock', case=False, na=False)].shape[0]
     esgotados = df[df['disponibilidade'].str.contains('Esgotado', case=False, na=False)].shape[0]
 
-    # 2. Dados para o gráfico
+    #  Dados para o gráfico
     labels = ['Em Estoque', 'Esgotados']
     valores = [disponiveis, esgotados]
     cores = ['#2ecc71', '#e74c3c']
 
-    # 3. Criando a figura e o gráfico (Apenas UMA vez)
+    # Criando a figura e o gráfico (Apenas UMA vez)
     fig, ax = plt.subplots(figsize=(8, 6))
     
     ax.pie(
@@ -110,11 +113,11 @@ def gerar_tabela_categorias(df):
     df_cat.columns = ['Categoria', 'Qtd de Livros']
     df_cat_top = df_cat.head(15) 
 
-    # 2. Configurando a figura
+    #  Configurando a figura
     fig, ax = plt.subplots(figsize=(8, 6))
     ax.axis('off') # Esconde os eixos numéricos
 
-    # 3. Desenhando a tabela
+    #  Desenhando a tabela
     tabela_cat = ax.table(
         cellText=df_cat_top.values,
         colLabels=df_cat_top.columns,
@@ -142,11 +145,11 @@ def gerar_tabela_estrelas(df):
     df_aval.columns = ['Estrelas', 'Qtd de Livros']
     df_aval['Estrelas'] = df_aval['Estrelas'].apply(lambda x: f"{int(x)} Estrela(s)")
 
-    # 2. Configurando a figura para a tabela de avaliações
+    # Configurando a figura para a tabela de avaliações
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.axis('off')
 
-    # 3. Desenhando a tabela
+    # Desenhando a tabela
     tabela_aval = ax.table(
         cellText=df_aval.values,
         colLabels=df_aval.columns,
@@ -154,13 +157,50 @@ def gerar_tabela_estrelas(df):
         loc='center'
     )
     
-    # 4. Estilizando
+    # Estilizando
     tabela_aval.auto_set_font_size(False)
     tabela_aval.set_fontsize(11)
     tabela_aval.scale(1.2, 1.8) 
     tabela_aval.auto_set_column_width(col=list(range(len(df_aval.columns))))
     
     plt.title("Quantidade de Livros por Avaliação", fontsize=14, pad=20)
+    plt.tight_layout()
+    plt.show()
+
+def insight_preco_avaliacao(df):
+    print("\n" + "="*40)
+    print("🧠 INSIGHT: PREÇO vs AVALIAÇÃO")
+    print("="*40)
+
+    #  Separar os livros em dois grupos
+    bem_avaliados = df[df['avaliacao'] >= 4]
+    outros = df[(df['avaliacao'] >= 1) & (df['avaliacao'] < 4)]
+
+    # Calcular a média de preço de cada grupo
+    media_alta = bem_avaliados['preco'].mean()
+    media_baixa = outros['preco'].mean()
+
+    print(f"💰 Preço médio dos livros TOP (4 e 5 estrelas): £{media_alta:.2f}")
+    print(f"💰 Preço médio dos demais (1 a 3 estrelas): £{media_baixa:.2f}\n")
+
+    # Gráfico de preço médio por quantidade exata de estrelas
+    media_por_estrela = df[df['avaliacao'] > 0].groupby('avaliacao')['preco'].mean()
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    barras = ax.bar(media_por_estrela.index, media_por_estrela.values, color='#4C72B0')
+    
+    # Adicionar o valor exato no topo de cada barra
+    ax.bar_label(barras, fmt='£%.2f', padding=3)
+
+    plt.title('Preço Médio por Quantidade de Estrelas', fontsize=14, pad=15)
+    plt.xlabel('Estrelas', fontsize=12)
+    plt.ylabel('Preço Médio (£)', fontsize=12)
+    plt.xticks(range(1, 6)) # Força o eixo X mostrar de 1 a 5 certinho
+    
+    # Remove as bordas do gráfico para ficar mais "limpo" (estilo dashboard)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
     plt.tight_layout()
     plt.show()
 
@@ -177,5 +217,6 @@ if __name__ == "__main__":
         gerar_tabela_visual(df_final)
         gerar_tabela_categorias(df_final)
         gerar_tabela_estrelas(df_final)
+        insight_preco_avaliacao(df_final)
    else:
         logging.warning("O banco de dados está vazio ou não foi encontrado.")

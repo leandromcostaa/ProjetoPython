@@ -18,7 +18,7 @@ class DatabaseManager:
          CREATE TABLE IF NOT EXISTS livros(
          id INTEGER PRIMARY KEY AUTOINCREMENT,
          titulo TEXT NOT NULL,
-         preco REAL,
+         preco TEXT,
          disponibilidade TEXT,
          categoria TEXT,
          avaliacao REAL,
